@@ -1,12 +1,80 @@
 // VulkanTest.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 
-#include "pch.h"
 #include <iostream>
+#include <stdexcept>
+#include <cstdlib>
+
+#include "vulkan/vulkan.h"
+
+#define GLFW_INCLUDE_VULKAN
+#include "GLFW/glfw3.h"
+
+class HelloTriangleApplication
+{
+public:
+	void run();
+private:
+	void initWindow();
+	void initVulkan();
+	void mainLoop();
+	void cleanUp();
+
+	GLFWwindow *m_win = nullptr;
+};
+
+void HelloTriangleApplication::run()
+{
+	initWindow();
+	initVulkan();
+	mainLoop();
+	cleanUp();
+}
+
+void HelloTriangleApplication::initWindow()
+{
+	glfwInit();
+
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+	
+	m_win = glfwCreateWindow(800, 600, "VulkanTest", nullptr, nullptr);
+}
+
+void HelloTriangleApplication::initVulkan()
+{}
+
+void HelloTriangleApplication::mainLoop()
+{
+	if (m_win) {
+		while (!glfwWindowShouldClose(m_win)) {
+			glfwPollEvents();
+		}
+	}
+	
+}
+
+void HelloTriangleApplication::cleanUp()
+{
+	glfwDestroyWindow(m_win);
+	glfwTerminate();
+}
+
 
 int main()
 {
-    std::cout << "Hello World!\n"; 
+    //std::cout << "Hello World!\n"; 
+
+	HelloTriangleApplication app;
+	try {
+		app.run();
+	}
+	catch (const std::exception &e) {
+		std::cerr << e.what() << std::endl;
+		return EXIT_FAILURE;
+	}
+
+	return EXIT_SUCCESS;
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
