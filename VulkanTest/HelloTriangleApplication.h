@@ -28,16 +28,23 @@ private:
 private:
 	void initVulkan();
 	void cleanUpVulkan();
+
+	// Vulkan instance
 	VkInstance m_vkInstance = VK_NULL_HANDLE;
 
 	static bool createVulkanInstance(const std::vector<const char*> &requiredExtensions, const std::vector<const char*> &requiredLayers, VkInstance *vkInst);
 
 	static bool isRequiredExtensionSupported(uint32_t extCount, const char* const *extensions);
 	static bool isRequiredLayerSupported(uint32_t layerCount, const char * const *layers);
+
+	// Phsyical device
+	VkPhysicalDevice m_physicalDevice = VK_NULL_HANDLE;
+	static bool pickPhysicalDevice(VkInstance vkInst, VkPhysicalDevice *physicalDevice);
+
 	
 	// Debug Messenger.
 #if ENABLE_DEBUG_MESSENGER	
-	VkDebugUtilsMessengerEXT m_vkDebugMessenger;
+	VkDebugUtilsMessengerEXT m_vkDebugMessenger = VK_NULL_HANDLE;
 	VkDebugUtilsMessengerCreateInfoEXT makeVkDebugUtilsMessengerCreateInfoEXT();
 
 	static VkResult createDebugUtilsMessenger(VkInstance vkInst, const VkDebugUtilsMessengerCreateInfoEXT *createInfo, const VkAllocationCallbacks *pAllocator, VkDebugUtilsMessengerEXT *vkMessenger);
