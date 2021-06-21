@@ -220,6 +220,28 @@ bool HelloTriangleApplication::isRequiredLayerSupported(uint32_t layerCount, con
 	return true;
 }
 
+bool HelloTriangleApplication::pickPhysicalDevice(VkInstance vkInst, VkPhysicalDevice *physicalDevice)
+{
+	// Enumerate devices
+	uint32_t deviceCount = 0;
+
+	if (vkEnumeratePhysicalDevices(vkInst, &deviceCount, nullptr) != VK_SUCCESS) {
+		throw std::runtime_error("Failed to enumerate physical devices.");
+	}
+
+	std::vector<VkPhysicalDevice> physicalDevices(deviceCount);
+	
+	if (vkEnumeratePhysicalDevices(vkInst, &deviceCount, physicalDevices.data())) {
+		throw std::runtime_error("Failed to enumerate physical devices.");
+	}
+
+	// List physical devices
+	//std::cout << "Physical Devices:" << std::endl;
+	//for (const auto &device : physicalDevices) {
+	//	std::cout << "* " << device.
+	//}
+}
+
 #if ENABLE_DEBUG_MESSENGER
 VkDebugUtilsMessengerCreateInfoEXT HelloTriangleApplication::makeVkDebugUtilsMessengerCreateInfoEXT()
 {
