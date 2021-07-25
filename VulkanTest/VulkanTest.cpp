@@ -56,7 +56,6 @@ public:
 private:
 	void initGLFWWindow();
 	void initVulkan();
-    void pickPhysicalDeivce(std::function<bool(VkPhysicalDeviceProperties, VkPhysicalDeviceFeatures)> isSuitableFunc);
 	void mainLoop();
 	void cleanUp();
 
@@ -83,12 +82,6 @@ void HelloTriangleApplication::run()
 {
 	initGLFWWindow();
 	initVulkan();
-    
-	auto checkDeviceFunc = [](VkPhysicalDeviceProperties deviceProps, VkPhysicalDeviceFeatures deviceFeatures)->bool {
-		// return (deviceProps.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && deviceFeatures.geometryShader);
-		return deviceFeatures.geometryShader;
-	};
-    pickPhysicalDeivce(checkDeviceFunc);
     
 	mainLoop();
     
@@ -117,16 +110,14 @@ void HelloTriangleApplication::initVulkan()
     requiredExtensions.push_back("VK_EXT_debug_utils");
 
 	if (!isRequiredExtensionSupported((uint32_t)requiredExtensions.size(), requiredExtensions.data()))
-    {
+{
 		throw std::runtime_error("Some extensions are not supported.");
 	}
 
 	// Required layers
 
 	std::vector<const char*> requiredLayers;
-    if (m_enableValidationLayers)
-    {
-        // Layers
+    if (m_enableValidationLayers) {
         requiredLayers.push_back("VK_LAYER_KHRONOS_validation");                 
     }
 
@@ -134,7 +125,7 @@ void HelloTriangleApplication::initVulkan()
 		throw std::runtime_error("Some layer are not supported.");
 	}
 
-	// Create instance.
+	// Create vulkan instance.
 
     VkApplicationInfo appInfo;
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -172,9 +163,52 @@ void HelloTriangleApplication::initVulkan()
     createInfo.pNext = &debugMsgCreateInfo;
 #endif
     
-    if (vkCreateInstance(&createInfo, nullptr, &m_vkInstance) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create Vulkan instance.");
+    VkCall(vkCreateInstance(&createInfo, nullptr, &m_vkInstance));
+
+    // Pick physical device.
+    
+    uint32_t physicalDeviceCount = 0;
+    vkEnumeratePhysicalDevices(m_vkInstance, &physicalDeviceCount, nullptr);
+    if (physicalDeviceCount == 0) {
+        throw std::runtime_error("Failed to find physical device supporting Vulkan.");
     }
+    std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
+    VkCall(vkEnumeratePhysicalDevices(m_vkInstance, &physicalDeviceCount, physicalDevices.data()));
+
+    // Find the first physical device support graphic queue.
+    for (auto device : physicalDevices) {
+        // Get device properties and features.
+        VkPhysicalDeviceProperties deviceProperties;
+        vkGetPhysicalDeviceProperties(device, &deviceProperties);
+        
+        VkPhysicalDeviceFeatures deviceFeatures;
+        vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+        
+        uint32_t queueFamilyPropertiesCount;
+        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyPropertiesCount, nullptr);
+        
+        
+        if (queueFamilyPropertiesCount > 0) {
+            std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertiesCount);
+            vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyPropertiesCount, queueFamilyProperties.data());
+            for (const VkQueueFamilyProperties &prop : queueFamilyProperties) {
+                if (prop.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+                    // Found
+                    m_vkPhysicalDevice = device;
+                    break;
+                }
+            }
+        }
+        
+        if (m_vkPhysicalDevice != VK_NULL_HANDLE) {
+            break;
+        }
+    }
+    if (m_vkPhysicalDevice == VK_NULL_HANDLE) {
+        throw std::runtime_error("Failed to find a suitable GPU.");
+    }
+    
+    // Now m_vkPhysicalDevice is the first physical device supporting graphic queue.
 }
 
 void HelloTriangleApplication::mainLoop()
@@ -277,38 +311,6 @@ bool HelloTriangleApplication::isRequiredLayerSupported(uint32_t layerCount, con
 	std::cout << std::endl;
 
 	return true;
-}
-
-void HelloTriangleApplication::pickPhysicalDeivce(std::function<bool(VkPhysicalDeviceProperties, VkPhysicalDeviceFeatures)> isSuitableFunc) {
-    uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, nullptr);
-    
-    if (deviceCount == 0) {
-        throw std::runtime_error("Failed to find physical device supporting Vulkan.");
-    }
-    
-    std::vector<VkPhysicalDevice> devices(deviceCount);
-    VkCall(vkEnumeratePhysicalDevices(m_vkInstance, &deviceCount, devices.data()));
-    
-    for (auto device : devices) {
-        // Get device properties and features.
-        VkPhysicalDeviceProperties deviceProperties;
-        vkGetPhysicalDeviceProperties(device, &deviceProperties);
-        
-        VkPhysicalDeviceFeatures deviceFeatures;
-        vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
-        
-        // Check if suitable.
-        if (isSuitableFunc(deviceProperties, deviceFeatures)) {
-            // Pick this.
-            m_vkPhysicalDevice = device;
-            break;
-        }
-    }
-    
-    if (m_vkPhysicalDevice == VK_NULL_HANDLE) {
-        throw std::runtime_error("Failed to find a suitable GPU.");
-    }
 }
     
 
