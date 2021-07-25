@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <cstdlib>
 #include <vector>
+#include <string>
 #include <algorithm>
 #include <functional>
 
@@ -83,10 +84,11 @@ void HelloTriangleApplication::run()
 	initGLFWWindow();
 	initVulkan();
     
-    pickPhysicalDeivce([](VkPhysicalDeviceProperties deviceProps, VkPhysicalDeviceFeatures deviceFeatures)->bool{
-        // return (deviceProps.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && deviceFeatures.geometryShader);
-        return true;
-    });
+	auto checkDeviceFunc = [](VkPhysicalDeviceProperties deviceProps, VkPhysicalDeviceFeatures deviceFeatures)->bool {
+		// return (deviceProps.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && deviceFeatures.geometryShader);
+		return deviceFeatures.geometryShader;
+	};
+    pickPhysicalDeivce(checkDeviceFunc);
     
 	mainLoop();
     
@@ -106,11 +108,12 @@ void HelloTriangleApplication::initGLFWWindow()
 
 void HelloTriangleApplication::initVulkan()
 {
-	// Query Vulkan extensions required by GLFW
+	// Required extensions.
+
 	uint32_t glfwExtCount = 0;
-	const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtCount);
-    
+	const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtCount);    
     std::vector<const char*> requiredExtensions(glfwExtensions, glfwExtensions + glfwExtCount);
+	
     requiredExtensions.push_back("VK_EXT_debug_utils");
 
 	if (!isRequiredExtensionSupported((uint32_t)requiredExtensions.size(), requiredExtensions.data()))
@@ -118,16 +121,20 @@ void HelloTriangleApplication::initVulkan()
 		throw std::runtime_error("Some extensions are not supported.");
 	}
 
+	// Required layers
+
 	std::vector<const char*> requiredLayers;
     if (m_enableValidationLayers)
     {
         // Layers
-        requiredLayers.push_back("VK_LAYER_KHRONOS_validation"); 
-        
-        if (!isRequiredLayerSupported((uint32_t)requiredLayers.size(), requiredLayers.data())) {
-            throw std::runtime_error("Some layer are not supported.");
-        }
+        requiredLayers.push_back("VK_LAYER_KHRONOS_validation");                 
     }
+
+	if (!isRequiredLayerSupported((uint32_t)requiredLayers.size(), requiredLayers.data())) {
+		throw std::runtime_error("Some layer are not supported.");
+	}
+
+	// Create instance.
 
     VkApplicationInfo appInfo;
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
