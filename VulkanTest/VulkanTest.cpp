@@ -16,7 +16,7 @@
 
 // The application.
 
-#define VkCall(func) if ((func) != VK_SUCCESS) throw std::runtime_error(std::string("failed to call " #func ", file: ") + std::string(__FILE__) + std::string(", line: ") + std::to_string(__LINE__));
+#define VkCall(func) if ((func) != VK_SUCCESS) throw std::runtime_error(std::string("Failed to call " #func ", file: ") + std::string(__FILE__) + std::string(", line: ") + std::to_string(__LINE__));
 
 #define ENABLE_DEBUG_CALLBACK 0
 
@@ -59,13 +59,15 @@ private:
 	void mainLoop();
 	void cleanUp();
 
-	bool isRequiredExtensionSupported(uint32_t extCount, const char **extensions);
-
-	bool isRequiredLayerSupported(uint32_t layerCount, const char **layers);
+    bool isRequiredLayerSupported(uint32_t layerCount, const char **layers);
+	bool isRequiredInstanceExtensionSupported(uint32_t extCount, const char **extensions);
+    bool isRequiredDeviceExtensionSupported(VkPhysicalDevice vkPhysicalDevice, uint32_t extCount, const char **extensions);
 
 	GLFWwindow *m_window = nullptr;
 	VkInstance m_vkInstance = VK_NULL_HANDLE;
     VkPhysicalDevice m_vkPhysicalDevice = VK_NULL_HANDLE;
+    VkDevice m_vkDevice = VK_NULL_HANDLE;
+    VkQueue m_vkQueue = VK_NULL_HANDLE;
     
 #if ENABLE_DEBUG_CALLBACK
     VkDebugUtilsMessengerEXT m_vkDebugMessager;
@@ -104,13 +106,13 @@ void HelloTriangleApplication::initVulkan()
 	// Required extensions.
 
 	uint32_t glfwExtCount = 0;
-	const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtCount);    
-    std::vector<const char*> requiredExtensions(glfwExtensions, glfwExtensions + glfwExtCount);
-	
-    requiredExtensions.push_back("VK_EXT_debug_utils");
-
-	if (!isRequiredExtensionSupported((uint32_t)requiredExtensions.size(), requiredExtensions.data()))
-{
+	const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtCount);
+    
+    std::vector<const char*> requiredInstanceExtensions(glfwExtensions, glfwExtensions + glfwExtCount);
+    requiredInstanceExtensions.push_back("VK_EXT_debug_utils");
+    requiredInstanceExtensions.push_back("VK_KHR_get_physical_device_properties2");
+	if (!isRequiredInstanceExtensionSupported((uint32_t)requiredInstanceExtensions.size(), requiredInstanceExtensions.data()))
+    {
 		throw std::runtime_error("Some extensions are not supported.");
 	}
 
@@ -120,7 +122,6 @@ void HelloTriangleApplication::initVulkan()
     if (m_enableValidationLayers) {
         requiredLayers.push_back("VK_LAYER_KHRONOS_validation");                 
     }
-
 	if (!isRequiredLayerSupported((uint32_t)requiredLayers.size(), requiredLayers.data())) {
 		throw std::runtime_error("Some layer are not supported.");
 	}
@@ -136,15 +137,15 @@ void HelloTriangleApplication::initVulkan()
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.apiVersion = VK_API_VERSION_1_0;
     
-	VkInstanceCreateInfo createInfo;
-	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-	createInfo.pNext = nullptr;
-	createInfo.flags = 0;
-	createInfo.pApplicationInfo = &appInfo;
-	createInfo.enabledLayerCount = (uint32_t)requiredLayers.size();
-	createInfo.ppEnabledLayerNames = requiredLayers.data();
-	createInfo.enabledExtensionCount = (uint32_t)requiredExtensions.size();
-	createInfo.ppEnabledExtensionNames= requiredExtensions.data();
+	VkInstanceCreateInfo instCreateInfo;
+	instCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	instCreateInfo.pNext = nullptr;
+	instCreateInfo.flags = 0;
+	instCreateInfo.pApplicationInfo = &appInfo;
+	instCreateInfo.enabledLayerCount = (uint32_t)requiredLayers.size();
+	instCreateInfo.ppEnabledLayerNames = requiredLayers.data();
+	instCreateInfo.enabledExtensionCount = (uint32_t)requiredInstanceExtensions.size();
+	instCreateInfo.ppEnabledExtensionNames= requiredInstanceExtensions.data();
 	
 #if ENABLE_DEBUG_CALLBACK
     VkDebugUtilsMessengerCreateInfoEXT debugMsgCreateInfo;
@@ -163,12 +164,12 @@ void HelloTriangleApplication::initVulkan()
     createInfo.pNext = &debugMsgCreateInfo;
 #endif
     
-    VkCall(vkCreateInstance(&createInfo, nullptr, &m_vkInstance));
+    VkCall(vkCreateInstance(&instCreateInfo, nullptr, &m_vkInstance));
 
     // Pick physical device.
     
     uint32_t physicalDeviceCount = 0;
-    vkEnumeratePhysicalDevices(m_vkInstance, &physicalDeviceCount, nullptr);
+    VkCall(vkEnumeratePhysicalDevices(m_vkInstance, &physicalDeviceCount, nullptr));
     if (physicalDeviceCount == 0) {
         throw std::runtime_error("Failed to find physical device supporting Vulkan.");
     }
@@ -176,6 +177,7 @@ void HelloTriangleApplication::initVulkan()
     VkCall(vkEnumeratePhysicalDevices(m_vkInstance, &physicalDeviceCount, physicalDevices.data()));
 
     // Find the first physical device support graphic queue.
+    uint32_t queueFamilyIndex = 0;
     for (auto device : physicalDevices) {
         // Get device properties and features.
         VkPhysicalDeviceProperties deviceProperties;
@@ -187,16 +189,18 @@ void HelloTriangleApplication::initVulkan()
         uint32_t queueFamilyPropertiesCount;
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyPropertiesCount, nullptr);
         
-        
         if (queueFamilyPropertiesCount > 0) {
             std::vector<VkQueueFamilyProperties> queueFamilyProperties(queueFamilyPropertiesCount);
             vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyPropertiesCount, queueFamilyProperties.data());
+            
+            queueFamilyIndex = 0;
             for (const VkQueueFamilyProperties &prop : queueFamilyProperties) {
                 if (prop.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                     // Found
                     m_vkPhysicalDevice = device;
                     break;
                 }
+                ++queueFamilyIndex;
             }
         }
         
@@ -208,7 +212,44 @@ void HelloTriangleApplication::initVulkan()
         throw std::runtime_error("Failed to find a suitable GPU.");
     }
     
-    // Now m_vkPhysicalDevice is the first physical device supporting graphic queue.
+    // Create the logical device.
+    
+    VkDeviceQueueCreateInfo deviceQueueCreateInfo;
+    deviceQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    deviceQueueCreateInfo.pNext = nullptr;
+    deviceQueueCreateInfo.flags = 0;
+    deviceQueueCreateInfo.queueFamilyIndex = queueFamilyIndex;
+    deviceQueueCreateInfo.queueCount = 1;
+    float queuePriorities = 1.0f;
+    deviceQueueCreateInfo.pQueuePriorities = &queuePriorities;
+    
+    VkDeviceCreateInfo deviceCreateInfo;
+    deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    deviceCreateInfo.pNext = nullptr;
+    deviceCreateInfo.flags = 0;
+    deviceCreateInfo.queueCreateInfoCount = 1;
+    deviceCreateInfo.pQueueCreateInfos = &deviceQueueCreateInfo;
+    deviceCreateInfo.enabledLayerCount = 0;
+    deviceCreateInfo.ppEnabledLayerNames = nullptr;
+
+    // Required device extensions.
+    std::vector<const char*> requiredDeviceExtensions;
+    requiredDeviceExtensions.push_back("VK_KHR_portability_subset");
+    if (!isRequiredDeviceExtensionSupported(m_vkPhysicalDevice, (uint32_t)requiredDeviceExtensions.size(), requiredDeviceExtensions.data())) {
+        throw std::runtime_error("Some device extensions are not supported.");
+    }
+    deviceCreateInfo.enabledExtensionCount = (uint32_t)requiredDeviceExtensions.size();
+    deviceCreateInfo.ppEnabledExtensionNames = requiredDeviceExtensions.data();
+
+    deviceCreateInfo.pEnabledFeatures = nullptr;
+
+    VkCall(vkCreateDevice(m_vkPhysicalDevice, &deviceCreateInfo, nullptr, &m_vkDevice));
+    
+    // Get queue
+    vkGetDeviceQueue(m_vkDevice, queueFamilyIndex, 0, &m_vkQueue);
+    if (m_vkQueue == VK_NULL_HANDLE) {
+        throw std::runtime_error("Failed to get device queue.");
+    }
 }
 
 void HelloTriangleApplication::mainLoop()
@@ -228,6 +269,7 @@ void HelloTriangleApplication::cleanUp()
 #endif
     
     // Destroy instance
+    vkDestroyDevice(m_vkDevice, nullptr);
 	vkDestroyInstance(m_vkInstance, nullptr);
     
     // Shutdown glfw
@@ -235,7 +277,48 @@ void HelloTriangleApplication::cleanUp()
 	glfwTerminate();
 }
 
-bool HelloTriangleApplication::isRequiredExtensionSupported(uint32_t extCount, const char **extensions)
+bool HelloTriangleApplication::isRequiredLayerSupported(uint32_t layerCount, const char **layers)
+{
+    // Obtain Vulkan layers supported.
+    uint32_t instLayerPropCount = 0;
+    if (vkEnumerateInstanceLayerProperties(&instLayerPropCount, nullptr) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to enumerate instance layer properties.");
+    }
+
+    std::vector<VkLayerProperties> instLayerProps(instLayerPropCount);
+    if (vkEnumerateInstanceLayerProperties(&instLayerPropCount, instLayerProps.data()) != VK_SUCCESS) {
+        throw std::runtime_error("Failed to enumerate instance layer properties.");
+    }
+
+    /*
+    std::cout << "Instance Layer Properties:" << std::endl;
+    for (const auto &prop : instLayerProps) {
+        std::cout << "* " << prop.layerName << ": " << prop.description << std::endl;
+    }
+    std::cout << std::endl;
+     */
+
+    // Check if all required layer are supported.
+    std::cout << "Required instance layer: " << std::endl;
+    for (uint32_t i = 0; i < layerCount; ++i) {
+        const char *layer = layers[i];
+
+        auto iter = std::find_if(instLayerProps.begin(), instLayerProps.end(), [layer](const VkLayerProperties &x) {
+            return strcmp(layer, x.layerName) == 0;
+        });
+
+        if (iter != instLayerProps.end()) {
+            std::cout << "* " << layer << " is supported." << std::endl;
+        } else {
+            return false;
+        }
+    }
+    std::cout << std::endl;
+
+    return true;
+}
+
+bool HelloTriangleApplication::isRequiredInstanceExtensionSupported(uint32_t extCount, const char **extensions)
 {
 	// Obtain Vulkan extensions supported.
 	uint32_t instExtPropCount = 0;
@@ -248,14 +331,16 @@ bool HelloTriangleApplication::isRequiredExtensionSupported(uint32_t extCount, c
 		throw std::runtime_error("Failed to enumerate instance extension properties.");
 	}
 
+    /*
 	std::cout << "Instance Extension Properties:" << std::endl;
 	for (const auto &prop : instExtProps) {
 		std::cout << "* " << prop.extensionName << std::endl;
 	}
 	std::cout << std::endl;
+     */
 
 	// Check if all required extension are supported.	
-	std::cout << "Required extension: " << std::endl;
+	std::cout << "Required instance extension: " << std::endl;
 	for (uint32_t i = 0; i < extCount; ++i) {
 		const char *ext = extensions[i];
 
@@ -274,43 +359,41 @@ bool HelloTriangleApplication::isRequiredExtensionSupported(uint32_t extCount, c
 	return true;
 }
 
-bool HelloTriangleApplication::isRequiredLayerSupported(uint32_t layerCount, const char **layers)
+bool HelloTriangleApplication::isRequiredDeviceExtensionSupported(VkPhysicalDevice vkPhysicalDevice, uint32_t extCount, const char **extensions)
 {
-	// Obtain Vulkan layers supported.
-	uint32_t instLayerPropCount = 0;
-	if (vkEnumerateInstanceLayerProperties(&instLayerPropCount, nullptr) != VK_SUCCESS) {
-		throw std::runtime_error("Failed to enumerate instance layer properties.");
-	}
+    // Obtain Vulkan extensions supported.
+    uint32_t extPropCount = 0;
+    VkCall(vkEnumerateDeviceExtensionProperties(vkPhysicalDevice, nullptr, &extPropCount, nullptr));
 
-	std::vector<VkLayerProperties> instLayerProps(instLayerPropCount);
-	if (vkEnumerateInstanceLayerProperties(&instLayerPropCount, instLayerProps.data()) != VK_SUCCESS) {
-		throw std::runtime_error("Failed to enumerate instance layer properties.");
-	}
+    std::vector<VkExtensionProperties> extProps(extPropCount);
+    VkCall(vkEnumerateDeviceExtensionProperties(vkPhysicalDevice, nullptr, &extPropCount, extProps.data()));
 
-	std::cout << "Instance Layer Properties:" << std::endl;
-	for (const auto &prop : instLayerProps) {
-		std::cout << "* " << prop.layerName << ": " << prop.description << std::endl;
-	}
-	std::cout << std::endl;
+    /*
+    std::cout << "Device Extension Properties:" << std::endl;
+    for (const auto &prop : extProps) {
+        std::cout << "* " << prop.extensionName << std::endl;
+    }
+    std::cout << std::endl;
+     */
 
-	// Check if all required layer are supported.
-	std::cout << "Required layer: " << std::endl;
-	for (uint32_t i = 0; i < layerCount; ++i) {
-		const char *layer = layers[i];
+    // Check if all required extension are supported.
+    std::cout << "Required device extension: " << std::endl;
+    for (uint32_t i = 0; i < extCount; ++i) {
+        const char *ext = extensions[i];
 
-		auto iter = std::find_if(instLayerProps.begin(), instLayerProps.end(), [layer](const VkLayerProperties &x) {
-			return strcmp(layer, x.layerName) == 0;
-		});
-
-		if (iter != instLayerProps.end()) {
-			std::cout << "* " << layer << " is supported." << std::endl;
-		} else {
+        auto iter = std::find_if(extProps.begin(), extProps.end(), [ext](const auto &x){
+            return strcmp(x.extensionName, ext) == 0;
+        });
+        if (iter != extProps.end()) {
+            std::cout << "* " << ext << " is supported." << std::endl;
+        } else {
+            std::cout << "Required extension: " << ext << " is not supported." << std::endl;
             return false;
         }
-	}
-	std::cout << std::endl;
+    }
+    std::cout << std::endl;
 
-	return true;
+    return true;
 }
     
 
