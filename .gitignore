@@ -261,7 +261,5 @@ __pycache__/
 *.pyc
 
 VulkanTest.xcworkspace/xcuserdata/
-VulkanTest.xcworkspace/xcuserdata/yue.xcuserdatad/UserInterfaceState.xcuserstate
-VulkanTest.xcworkspace/xcuserdata/yue.xcuserdatad/xcdebugger/Breakpoints_v2.xcbkptlist
 
 
