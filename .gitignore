@@ -6,6 +6,7 @@
 *.user
 *.userosscache
 *.sln.docstates
+*.xcworkspace
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -261,4 +262,4 @@ __pycache__/
 *.pyc
 VulkanTest.xcworkspace/xcuserdata/yue.xcuserdatad/UserInterfaceState.xcuserstate
 VulkanTest.xcworkspace/xcuserdata/yue.xcuserdatad/xcdebugger/Breakpoints_v2.xcbkptlist
-*.xcuserstate
+
