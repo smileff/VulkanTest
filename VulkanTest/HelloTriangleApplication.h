@@ -13,16 +13,13 @@
 class HelloTriangleApplication
 {
 public:
-	void run();
-
-private:
-	void mainLoop();
+	void Run();
 
 	// GLFW window
 private:
-	void initWindow();
-	void cleanUpWindow();
-	GLFWwindow *m_window = nullptr;
+	static GLFWwindow* InitGLFW(int winWidth = 800, int winHeight = 600, const char *caption = "Vulkan Window");
+	static void RunGLFWWindowMainLoop(GLFWwindow *win);
+	static void CleanupGLFW(GLFWwindow *win);	
 
 	// Vulkan
 private:

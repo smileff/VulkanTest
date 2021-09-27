@@ -53,19 +53,21 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
 	return VK_FALSE;    // Return VK_TRUE will terminate the application.
 }
 
-void HelloTriangleApplication::run()
+void HelloTriangleApplication::Run()
 {
-	initWindow();
+	// Initialization
+	GLFWwindow *window = InitGLFW();
 	initVulkan();
 
-	mainLoop();
+	// Main loop
+	RunGLFWWindowMainLoop(window);
 
-
+	// Termination
 	cleanUpVulkan();
-	cleanUpWindow();	
+	CleanupGLFW(window);	
 }
 
-void HelloTriangleApplication::initWindow()
+GLFWwindow* HelloTriangleApplication::InitGLFW(int winWidth, int winHeight, const char *caption)
 {
 	glfwInit();
 
@@ -73,12 +75,24 @@ void HelloTriangleApplication::initWindow()
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);	// Don't need OpenGL API.
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);		// Don't resize the window.
 
-	m_window = glfwCreateWindow(800, 600, "VulkanTest", nullptr, nullptr);
+	GLFWwindow *win = glfwCreateWindow(winWidth, winHeight, caption, nullptr, nullptr);
+	return win;
 }
 
-void HelloTriangleApplication::cleanUpWindow()
+void HelloTriangleApplication::RunGLFWWindowMainLoop(GLFWwindow *window)
 {
-	glfwDestroyWindow(m_window);
+	if (window) {
+		while (!glfwWindowShouldClose(window)) {
+			glfwPollEvents();
+		}
+	}
+}
+
+void HelloTriangleApplication::CleanupGLFW(GLFWwindow *win)
+{
+	if (win != nullptr) {
+		glfwDestroyWindow(win);
+	}	
 	glfwTerminate();
 }
 
@@ -119,17 +133,6 @@ void HelloTriangleApplication::cleanUpVulkan()
 
 	vkDestroyInstance(m_vkInstance, nullptr);
 }
-
-void HelloTriangleApplication::mainLoop()
-{
-	if (m_window) {
-		while (!glfwWindowShouldClose(m_window)) {
-			glfwPollEvents();
-		}
-	}
-}
-
-
 
 bool HelloTriangleApplication::createVulkanInstance(	
 	const std::vector<const char*> &requiredExtensions,
