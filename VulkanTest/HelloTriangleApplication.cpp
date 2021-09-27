@@ -10,6 +10,40 @@
 
 // The application.
 
+#define VkCall(func) if ((func) != VK_SUCCESS) throw std::runtime_error(std::string("Failed to call " #func ", file: ") + std::string(__FILE__) + std::string(", line: ") + std::to_string(__LINE__));
+
+#define ENABLE_DEBUG_CALLBACK 0
+
+#if ENABLE_DEBUG_CALLBACK
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity, VkDebugUtilsMessageTypeFlagsEXT msgTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
+{
+	if (msgTypes >= VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) {
+		std::cerr << "Callback message: " << pCallbackData->pMessage << std::endl;
+	}
+
+	return VK_FALSE;    // Return VK_TRUE will terminate the application.
+}
+
+static VkResult CreateDebugUtilsMessengerEXT(VkInstance vkInst, const VkDebugUtilsMessengerCreateInfoEXT* createInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* vkMessenger)
+{
+	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(vkInst, "vkCreateDebugUtilsMessengerEXT");
+	if (func != nullptr) {
+		return func(vkInst, createInfo, pAllocator, vkMessenger);
+	}
+	else {
+		return VK_ERROR_EXTENSION_NOT_PRESENT;
+	}
+}
+
+static void DestroyDebugUtilsMessengerEXT(VkInstance vkInst, VkDebugUtilsMessengerEXT vkMessenger, VkAllocationCallbacks* pAllocator)
+{
+	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(vkInst, "vkDestroyDebugUtilsMessengerEXT");
+	if (func != nullptr) {
+		func(vkInst, vkMessenger, pAllocator);
+	}
+}
+#endif
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity, VkDebugUtilsMessageTypeFlagsEXT msgTypes, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData)
 {
 	if (msgTypes >= VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) {
