@@ -4,26 +4,19 @@
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
-#include <vector>
-#include <string>
-#include <algorithm>
-#include <functional>
 
-#include "vulkan/vulkan.h"
-
-#define GLFW_INCLUDE_VULKAN
-#include "GLFW/glfw3.h"
-
-#include "HelloTriangleApplication.h"
+#include "VulkanApplication.h"
+#include "GLFWWindow.h"
 
 // The application.
 
 int main()
 {    
-	HelloTriangleApplication app;
+	GLFWWindow win;
+	VulkanApplication app;
 
 	try {
-		app.Run();
+		win.Run(&app);
 	} catch (const std::exception &e) {
 		std::cerr << e.what() << std::endl;
 		return EXIT_FAILURE;

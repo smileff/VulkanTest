@@ -163,11 +163,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="HelloTriangleApplication.cpp" />
-    <ClCompile Include="VulkanTest.cpp" />
+    <ClCompile Include="GLFWWindow.cpp" />
+    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="VulkanFunctions.cpp" />
+    <ClCompile Include="VulkanApplication.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="HelloTriangleApplication.h" />
+    <ClInclude Include="GLFWWindow.h" />
+    <ClInclude Include="VulkanFunctions.h" />
+    <ClInclude Include="VulkanApplication.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
